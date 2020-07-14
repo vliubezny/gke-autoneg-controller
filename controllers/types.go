@@ -28,8 +28,10 @@ type NEGStatus struct {
 // AutonegConfig specifies the intended configuration of autoneg
 // stored in the anthos.cft.dev/autoneg annotation
 type AutonegConfig struct {
-	Name string  `json:"name"`
-	Rate float64 `json:"max_rate_per_endpoint"`
+	Name                      string  `json:"name"`
+	Rate                      float64 `json:"max_rate_per_endpoint"`
+	MaxConnections            int64   `json:"max_connections"`
+	MaxConnectionsPerEndpoint int64   `json:"max_connections_per_endpoint"`
 }
 
 // AutonegStatus specifies the reconciled status of autoneg

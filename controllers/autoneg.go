@@ -30,22 +30,32 @@ const (
 	autonegStatusAnnotation = "anthos.cft.dev/autoneg-status"
 	negStatusAnnotation     = "cloud.google.com/neg-status"
 	autonegFinalizer        = "anthos.cft.dev/autoneg"
+	balancingModeRate       = "RATE"
+	balancingModeConnection = "CONNECTION"
 )
 
 var (
 	errNotFound      = errors.New("backend service not found")
 	errConfigInvalid = errors.New("autoneg configuration invalid")
 	errJSONInvalid   = errors.New("json malformed")
+	errParamsInvalid = errors.New("Exactly one parameter expected: max_rate_per_endpoint, max_connections or max_connections_per_endpoint")
 )
 
 // Backend returns a compute.Backend struct specified with a backend group
 // and the embedded AutonegConfig
 func (s AutonegStatus) Backend(group string) compute.Backend {
+	balancingMode := balancingModeRate
+	if s.AutonegConfig.Rate == 0 {
+		balancingMode = balancingModeConnection
+	}
+
 	return compute.Backend{
-		Group:              group,
-		BalancingMode:      "RATE",
-		MaxRatePerEndpoint: s.AutonegConfig.Rate,
-		CapacityScaler:     1,
+		Group:                     group,
+		BalancingMode:             balancingMode,
+		MaxRatePerEndpoint:        s.AutonegConfig.Rate,
+		MaxConnections:            s.AutonegConfig.MaxConnections,
+		MaxConnectionsPerEndpoint: s.AutonegConfig.MaxConnectionsPerEndpoint,
+		CapacityScaler:            1,
 	}
 }
 
@@ -187,7 +197,20 @@ func getGroup(project, zone, neg string) string {
 }
 
 func validateConfig(cfg AutonegConfig) error {
-	// do additional validation
+	configured := false
+	if cfg.Rate != 0 {
+		configured = true
+	}
+
+	connections := []int64{cfg.MaxConnections, cfg.MaxConnectionsPerEndpoint}
+	for _, val := range connections {
+		if val != 0 {
+			if configured {
+				return errParamsInvalid
+			}
+			configured = true
+		}
+	}
 	return nil
 }
 
